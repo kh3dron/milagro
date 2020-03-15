@@ -1,5 +1,27 @@
 from PIL import Image
 
+"Takes in string, returns concatenated binary"
+def string_to_binary_line(text):
+    orded = [ord(c) for c in text]
+    bins = [bin(c) for c in orded]
+    cut = [c[2:] for c in bins]
+    fixes = [("0"*(8-len(g)) + g) for g in cut]
+    returner = ""
+    for r in fixes:
+        returner += r
+    return returner
+
+"Takes in contatenated binary, returns string"
+def binary_line_to_string(digits):
+    chunks = []
+    chars = ""
+    digits += "0"* (8 - (len(digits) % 8))
+    for i in range(0,len(digits),8):
+        chunks.append(chr(int(digits[i:i+8],2)))
+    for g in chunks:
+        chars += g
+    return(chars)
+
 def read_lsb(filename):
     im = Image.open(filename)
     width, length = im.size
@@ -7,33 +29,20 @@ def read_lsb(filename):
     #Extract the least significan bit from each coordinate
     bits = ""
     for x in range(0, width):
-        for y  in range(0, length):
+        for y in range(0, length):
             for r in range(0, 3):
                 bits += str(im.getpixel((x, y))[r] & 1)
-
-    #add zeroes to pad to 8s
-    bits += "0"*(8 - (len(bits)%8))
-
-    #extract characters from binary
-    returnInts = ""
-    for i in range(0,len(bits),8):
-        returnInts += (chr(int(bits[i:i+8],2)))
-
-    return(returnInts)
+    return(binary_line_to_string(bits))
 
 def write_lsb(message, readFrom, writeTo):
     im = Image.open(readFrom)
-    #Format characters
-    bits = ""
-    for g in message:
-        term = "0"*(8-len(str(bin(ord(g)))[2:])) + (str(bin(ord(g))))[2:]
-        bits += term
-
-    #Pad with 3 zeroes
-    bits += "0"*(3 - (len(bits)%3))
-
     width, length = im.size
-    available_bits = width*length*3
+
+
+    bits = string_to_binary_line(message)
+    available_bits = length*width*3
+
+    bits += "0"*(3-(len(bits) % 3))
 
     if (len(bits) > available_bits):
         print("Error: Ciphertext too large for this image.")
@@ -41,17 +50,14 @@ def write_lsb(message, readFrom, writeTo):
     tick = 0
     for x in range(0, width):
         for y in range(0, length):
-            colors = (im.getpixel((x, y)))
+            r, g, b, z = (im.getpixel((x, y)))
 
-            r = colors[0]
-            g = colors[1]
-            b = colors[2]
             #This isn't perfect, but couldn't make the bitwise thing work today
-            if (colors[0] % 2 != int(bits[tick])): r += 1
-            if (colors[1] % 2 != int(bits[tick+1])): g += 1
-            if (colors[2] % 2 != int(bits[tick+2])): b += 1
+            if (r % 2 != int(bits[tick])): r += 1
+            if (g % 2 != int(bits[tick+1])): g += 1
+            if (b % 2 != int(bits[tick+2])): b += 1
 
-            im.putpixel((x, y), (r, g, b))
+            im.putpixel((x, y), (r, g, b, z))
             tick += 3
             if tick >= len(bits):
                 break
@@ -60,7 +66,8 @@ def write_lsb(message, readFrom, writeTo):
     im.save(writeTo)
     return
 
-text = "Test this out, why don't ya"
-var1 = read_lsb('pic.jpg')
-write_lsb(text, 'pic.jpg', 'encoded.png')
-var2 = read_lsb('encoded.jpg')
+text = "THIS IS A SECRET, PROTECT IT"
+write_lsb(text, 'small.png', 'encoded.png')
+var2 = read_lsb('encoded.png')
+
+print(var2)
